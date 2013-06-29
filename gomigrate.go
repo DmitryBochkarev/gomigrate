@@ -85,12 +85,12 @@ func MigrateDatabase(db *sql.DB, migrations []Migration, up bool, step int) erro
 			log.Printf("Success migration %d %s", i, migrations[i].Name)
 			log.Println("Save migration number to schema_migrations")
 			if up {
-				_, err = db.Exec(`insert into schema_migrations
+				_, err = tx.Exec(`insert into schema_migrations
 					(id, title)
 					values
 					($1, $2)`, i, migrations[i].Name)
 			} else {
-				_, err = db.Exec(`delete from schema_migrations where id = $1`, i)
+				_, err = tx.Exec(`delete from schema_migrations where id = $1`, i)
 			}
 			if err != nil {
 				log.Printf("Fail to save migration %d %s", i, migrations[i].Name)
