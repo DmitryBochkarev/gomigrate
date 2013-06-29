@@ -2,9 +2,10 @@ package gomigrate
 
 import (
 	"database/sql"
+	"log"
 )
 
-type MigrateFunction func(tx *sql.Tx) error
+type MigrateFunction func(*sql.Tx) error
 
 type Migration struct {
 	Name string
@@ -54,31 +55,35 @@ func MigrateDatabase(db *sql.DB, migrations []Migration, up bool, step int) erro
 	}
 	if runMigrations {
 		if lastMigration > -1 {
-//			log(LOG_INFO, "Last migration number: ", lastMigration)
+			log.Printf("Last migration number: %d", lastMigration)
 		} else {
-//			log(LOG_INFO, "Create database schema")
+			log.Println("Create database schema")
 		}
-//		log(LOG_INFO, "Run migrations in ", app.migrationDirection, " direction with step", app.migrationStep)
+		if up {
+			log.Printf("Run migrations with step %d\n", step)
+		} else {
+			log.Printf("Run rollback migrations with step %d\n", step)
+		}
 		for i := migrationStartN; i != migrationEndN; i = i + migrationIncrement {
-//			log(LOG_INFO, "Begin")
+			log.Println("Begin")
 			tx, err := db.Begin()
 			if err != nil {
 				return err
 			}
-//			log(LOG_INFO, "Run migration ", i, migrations[i].Name)
+			log.Printf("Run migration %d %s", i, migrations[i].Name)
 			if up {
 				err = migrations[i].Up(tx)
 			} else {
 				err = migrations[i].Down(tx)
 			}
 			if err != nil {
-//				log(LOG_ERROR, "Fail migration ", i)
-//				log(LOG_ERROR, "Rollback")
+				log.Printf("Fail migration %d %s", i, migrations[i].Name)
+				log.Println("Rollback")
 				tx.Rollback()
 				return err
 			}
-//			log(LOG_INFO, "Success migration ", i, migrations[i].Name)
-//			log(LOG_INFO, "Save migration number to schema_migrations")
+			log.Printf("Success migration %d %s", i, migrations[i].Name)
+			log.Println("Save migration number to schema_migrations")
 			if up {
 				_, err = db.Exec(`insert into schema_migrations
 					(id, title)
@@ -88,21 +93,21 @@ func MigrateDatabase(db *sql.DB, migrations []Migration, up bool, step int) erro
 				_, err = db.Exec(`delete from schema_migrations where id = $1`, i)
 			}
 			if err != nil {
-//				log(LOG_ERROR, "Fail saving migration ", i, migrations[i].Name)
-//				log(LOG_ERROR, "Rollback")
+				log.Printf("Fail to save migration %d %s", i, migrations[i].Name)
+				log.Println("Rollback")
 				tx.Rollback()
 				return err
 			}
-//			log(LOG_INFO, "Commit")
+			log.Println("Commit")
 			tx.Commit()
 		}
-//		log(LOG_INFO, "All migrations success")
+		log.Println("All migrations success")
 	}
 	return nil
 }
 
 func migrationDatabaseSchemaCreate(db *sql.DB) error {
-//	log(LOG_INFO, "Check schema_migrations table")
+	log.Println("Check schema_migrations table")
 	var count uint
 	res := db.QueryRow(`select count(*) c from pg_stat_user_tables where relname = 'schema_migrations'`)
 	err := res.Scan(&count)
@@ -112,7 +117,7 @@ func migrationDatabaseSchemaCreate(db *sql.DB) error {
 	if count == 1 {
 		return nil
 	}
-//	log(LOG_INFO, "Create schema_migrations table")
+	log.Println("Create schema_migrations table")
 	tx, err := db.Begin()
 	if err != nil {
 		return err
